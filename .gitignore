@@ -1,0 +1,5 @@
+.vscode
+detected_frames
+venv
+.env
+best.pt

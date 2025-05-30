@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Exam Monitoring System</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Exam Monitoring System</h1>
+
+      <div class="video-source-controls">
+        <h2>Video Source</h2>
+        <div class="source-buttons">
+          <button id="liveCameraBtn" class="active">Live Camera</button>
+          <button id="uploadVideoBtn">Upload Video</button>
+        </div>
+        <div id="uploadSection" class="upload-section" style="display: none">
+          <form id="videoUploadForm">
+            <input type="file" id="videoFile" accept="video/*" />
+            <button type="submit">Upload & Process</button>
+          </form>
+          <div id="uploadProgress" style="display: none">
+            <p>Processing video... <span id="progressText">0%</span></p>
+            <div class="progress-bar">
+              <div class="progress"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="video-container">
+        <img
+          src="{{ url_for('video_feed') }}"
+          alt="Video feed"
+          id="videoFeed"
+        />
+      </div>
+      <div class="alerts-container">
+        <h2>Recent Alerts</h2>
+        <div class="filter-controls">
+          <select id="behaviorFilter">
+            <option value="all">All Behaviors</option>
+            <option value="looking_at_others_paper">
+              Looking at Others' Paper
+            </option>
+            <option value="looking_down_suspicious">
+              Suspicious Downward Gaze
+            </option>
+            <option value="phone_detected">Phone Usage</option>
+            <option value="potential_talking">Potential Talking</option>
+          </select>
+        </div>
+        <div id="alerts-list"></div>
+      </div>
+
+      <div class="selected-alert-container">
+        <h2>Selected Alert Image</h2>
+        <div id="selected-alert-image"></div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>
