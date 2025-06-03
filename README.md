@@ -15,7 +15,7 @@ A real-time system for detecting potential cheating behaviors during exams using
 
 ## Prerequisites
 
-- Python 3.12+
+- Python 3.10+
 - PostgreSQL
 - Webcam
 - CUDA-capable GPU (recommended for better performance)

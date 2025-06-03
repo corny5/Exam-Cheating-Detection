@@ -1,8 +1,8 @@
 $env:PGPASSWORD = "Your-Password-Here"
 
 # Create database
-psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS exam_proctor;"
-psql -U postgres -h localhost -c "CREATE DATABASE exam_proctor;"
+psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS cheating_detection;"
+psql -U postgres -h localhost -c "CREATE DATABASE cheating_detection;"
 
 # Create tables
 $createTables = @"
@@ -20,6 +20,6 @@ CREATE INDEX IF NOT EXISTS idx_detections_timestamp ON detections(timestamp DESC
 CREATE INDEX IF NOT EXISTS idx_detections_behavior_type ON detections(behavior_type);
 "@
 
-psql -U postgres -h localhost -d exam_proctor -c $createTables
+psql -U postgres -h localhost -d cheating_detection -c $createTables
 
 Write-Host "Database initialized successfully"
