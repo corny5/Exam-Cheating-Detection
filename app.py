@@ -5,20 +5,71 @@ from flask import (
     jsonify,
     send_from_directory,
     request,
+    session,
+    redirect,
+    url_for,
 )
 import cv2
 from src.detectors.cheating_detector import CheatingDetector
 from src.database.db_manager import DBManager
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import threading
 import time
 import queue
+import secrets
 
 app = Flask(__name__)
+# Session configuration
+app.secret_key = secrets.token_hex(16)  # Generate a secure secret key for sessions
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
+    hours=5
+)  # Session expires after 5 hours
+
 detector = CheatingDetector()
 db_manager = DBManager()
+
+# Hardcoded credentials (in a real application, these should be stored securely)
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "password"
+
+
+def login_required(f):
+    def decorated_function(*args, **kwargs):
+        if "logged_in" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    # If user is already logged in, redirect to index
+    if session.get("logged_in"):
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session["logged_in"] = True
+            session.permanent = True  # Make the session persistent
+            return redirect(url_for("index"))
+        else:
+            return render_template("login.html", error="Invalid credentials")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("logged_in", None)
+    return redirect(url_for("login"))
+
 
 # Configure upload settings
 UPLOAD_FOLDER = "uploads"
@@ -44,7 +95,9 @@ def allowed_file(filename):
 video_processing = {"active": False, "progress": 0, "status": ""}
 
 
+# Home page route
 @app.route("/")
+@app.route("/index")
 def index():
     return render_template("index.html")
 
@@ -58,13 +111,17 @@ def generate_frames():
         os.makedirs("detected_frames")
 
     for index in camera_indices:
-        cap = cv2.VideoCapture(index)
-        if cap is not None and cap.isOpened():
-            # Set resolution to standard dimensions
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            print(f"Successfully opened camera at index {index}")
-            break
+        try:
+            cap = cv2.VideoCapture(index)
+            if cap is not None and cap.isOpened():
+                # Set resolution to standard dimensions
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                print(f"Successfully opened camera at index {index}")
+                break
+        except Exception as e:
+            print(f"Error with camera index {index}: {str(e)}")
+            continue
 
     if cap is None or not cap.isOpened():
         print("Error: Could not open webcam")
@@ -130,6 +187,7 @@ def generate_frames():
             cap.release()
 
 
+# Single video feed route that handles both camera and processed video
 @app.route("/video_feed")
 def video_feed():
     """Route to stream video - either from camera or processed video"""
@@ -141,7 +199,8 @@ def video_feed():
         )
     else:
         return Response(
-            generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame"
+            generate_frames(),
+            mimetype="multipart/x-mixed-replace; boundary=frame",
         )
 
 
@@ -152,6 +211,7 @@ def get_alerts():
 
 
 @app.route("/api/detections/recent")
+@login_required
 def get_recent_detections():
     """Get recent detections"""
     detections = db_manager.get_recent_detections(limit=50)
