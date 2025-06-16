@@ -12,6 +12,7 @@ class CheatingDetector:
         self.pose_analyzer = PoseAnalyzer()
         self.object_detector = ObjectDetector()
         self.confidence_threshold = 0.6
+        self.custom_model_confidence_threshold = 0.3
 
     def process_frame(self, frame):
         """
@@ -31,7 +32,11 @@ class CheatingDetector:
 
         # 1. Check for direct cheating detection from custom model
         for cheating_detection in cheating_results["cheating"]:
-            if cheating_detection["confidence"] > self.confidence_threshold:
+            if (
+                cheating_detection["confidence"]
+                > self.custom_model_confidence_threshold
+            ):
+                # If the custom model detects cheating, we consider it a high-confidence detection
                 detections.append(
                     {
                         "behavior_type": "cheating_detected",
@@ -39,17 +44,13 @@ class CheatingDetector:
                         "bbox": cheating_detection["bbox"],
                         "details": "Student detected cheating by custom model",
                     }
-                )
-
-        # 2. Check for looking at other's paper
-        if pose_results.get("looking_sideways", False):
-            detections.append(
-                {
-                    "behavior_type": "looking_at_others_paper",
-                    "confidence": pose_results["confidence"],
-                    "details": "Student detected looking sideways",
-                }
-            )
+                )  # 2. Looking at other's paper detection disabled
+        # if pose_results.get("looking_sideways", False):
+        #     detections.append({
+        #         "behavior_type": "looking_at_others_paper",
+        #         "confidence": pose_results["confidence"],
+        #         "details": "Student detected looking sideways",
+        #     })
 
         # 3. Check for looking down suspiciously
         if pose_results.get("looking_down", False):
@@ -77,7 +78,9 @@ class CheatingDetector:
 
         # Filter out low confidence detections
         detections = [
-            d for d in detections if d["confidence"] > self.confidence_threshold
+            d
+            for d in detections
+            if d["confidence"] > self.custom_model_confidence_threshold
         ]
 
         return detections

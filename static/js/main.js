@@ -155,9 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
         liveCameraBtn.classList.remove('active');
         uploadSection.style.display = 'block';
         videoFeed.style.display = 'none';
-    });
-
-    // Handle video upload
+    });    // Handle video upload
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fileInput = document.getElementById('videoFile');
@@ -180,10 +178,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!response.ok) {
                 throw new Error('Upload failed');
-            }            // Show processed video feed and start polling for progress
+            }
+            
+            // Show processed video feed and start polling for progress
             videoFeed.style.display = 'block';
             videoFeed.src = '/video_feed?source=processed';
+            
+            // Start polling for both progress and alerts
             pollProcessingStatus();
+            
+            // Increase alert polling frequency during video processing
+            const alertUpdateInterval = setInterval(updateDetections, 1000); // Update every second
+            
+            // Once processing is complete, revert to normal polling frequency
+            const checkComplete = setInterval(() => {
+                fetch('/processing-status')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.active) {
+                            clearInterval(alertUpdateInterval);
+                            clearInterval(checkComplete);
+                            // Revert to normal polling frequency
+                            setInterval(updateDetections, 5000);
+                        }
+                    });
+            }, 1000);
 
         } catch (error) {
             console.error('Error uploading video:', error);

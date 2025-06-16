@@ -31,6 +31,10 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
 detector = CheatingDetector()
 db_manager = DBManager()
 
+# Global state variables
+video_source = {"type": "camera", "active": False}
+camera = None  # Global camera object
+
 # Hardcoded credentials (in a real application, these should be stored securely)
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "password"
@@ -103,8 +107,16 @@ def index():
 
 
 def generate_frames():
+    global camera, video_source
+
+    # If we're processing an uploaded video, don't start the camera
+    if video_source["type"] == "video":
+        return
+
+    video_source["type"] = "camera"
+    video_source["active"] = True
+
     camera_indices = [0, 1]
-    cap = None
 
     # Create detected_frames directory if it doesn't exist
     if not os.path.exists("detected_frames"):
@@ -112,24 +124,27 @@ def generate_frames():
 
     for index in camera_indices:
         try:
-            cap = cv2.VideoCapture(index)
-            if cap is not None and cap.isOpened():
+            camera = cv2.VideoCapture(index)
+            if camera is not None and camera.isOpened():
                 # Set resolution to standard dimensions
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                 print(f"Successfully opened camera at index {index}")
                 break
         except Exception as e:
             print(f"Error with camera index {index}: {str(e)}")
             continue
 
-    if cap is None or not cap.isOpened():
+    if camera is None or not camera.isOpened():
         print("Error: Could not open webcam")
         return
 
     try:
         while True:
-            success, frame = cap.read()
+            if not video_source["active"] or video_source["type"] != "camera":
+                break
+
+            success, frame = camera.read()
             if not success:
                 print("Error: Could not read frame")
                 break
@@ -182,17 +197,20 @@ def generate_frames():
 
     except Exception as e:
         print(f"Error in generate_frames: {str(e)}")
+
     finally:
-        if cap is not None:
-            cap.release()
+        if camera is not None:
+            camera.release()
+            video_source["active"] = False
 
 
 # Single video feed route that handles both camera and processed video
 @app.route("/video_feed")
 def video_feed():
     """Route to stream video - either from camera or processed video"""
-    source = request.args.get("source", "camera")
-    if source == "processed":
+    global video_source
+
+    if video_source["type"] == "video":
         return Response(
             generate_processed_frames(),
             mimetype="multipart/x-mixed-replace; boundary=frame",
@@ -250,6 +268,8 @@ def draw_detection_boxes(frame, detections):
 
 @app.route("/upload-video", methods=["POST"])
 def upload_video():
+    global video_source, camera
+
     if "video" not in request.files:
         return jsonify({"error": "No video file provided"}), 400
 
@@ -258,6 +278,13 @@ def upload_video():
         return jsonify({"error": "No selected file"}), 400
 
     if file and allowed_file(file.filename):
+        # Stop the camera feed if it's running
+        video_source["type"] = "video"
+        video_source["active"] = False
+        if camera is not None:
+            camera.release()
+            camera = None
+
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
         file.save(filepath)
@@ -297,14 +324,17 @@ def process_frame_with_detections(frame):
                         "detected_frames",
                         f"frame_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg",
                     )
-                    # Save the frame
+                    # Save the frame with detection boxes
                     cv2.imwrite(frame_path, frame)
-                    # Store in database
+                    # Store in database immediately
                     db_manager.store_detection(
                         timestamp=timestamp,
                         behavior_type=detection["behavior_type"],
                         confidence=detection["confidence"],
                         frame_path=frame_path,
+                    )
+                    print(
+                        f"Stored detection: {detection['behavior_type']} with confidence {detection['confidence']}"
                     )
 
         return frame
@@ -333,10 +363,13 @@ def generate_processed_frames():
 
 def process_video_file(video_path):
     """Process uploaded video file"""
+    global video_source
     try:
         video_processing["active"] = True
         video_processing["progress"] = 0
         video_processing["status"] = "Processing started"
+        video_source["type"] = "video"
+        video_source["active"] = True
         processing_complete.clear()
 
         cap = cv2.VideoCapture(video_path)
@@ -365,12 +398,12 @@ def process_video_file(video_path):
                 f"Processing frame {processed_frames}/{total_frames}"
             )
 
-        cap.release()
-
-        # Clean up
+        cap.release()  # Clean up
         video_processing["active"] = False
         video_processing["status"] = "Processing complete"
         video_processing["progress"] = 100
+        video_source["type"] = "camera"  # Reset back to camera mode
+        video_source["active"] = False
         processing_complete.set()
 
         # Clean up the uploaded video
