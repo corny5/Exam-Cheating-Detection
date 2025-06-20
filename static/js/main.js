@@ -133,6 +133,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadSection = document.getElementById('uploadSection');
     const videoFeed = document.getElementById('videoFeed');
     const behaviorFilter = document.getElementById('behaviorFilter');
+    const cameraControlBtn = document.getElementById('cameraControlBtn');
+
+    // Initially hide the video feed
+    videoFeed.style.display = 'none';
+
+    // Handle camera control
+    let isCameraRunning = false;
+    cameraControlBtn.addEventListener('click', () => {
+        if (!isCameraRunning) {
+            // Start camera
+            videoFeed.style.display = 'block';
+            videoFeed.src = '/video_feed?source=camera';
+            cameraControlBtn.textContent = 'Stop Camera';
+            cameraControlBtn.style.backgroundColor = '#ff4444';
+            isCameraRunning = true;
+        } else {
+            // Stop camera
+            videoFeed.style.display = 'none';
+            videoFeed.src = '';
+            cameraControlBtn.textContent = 'Start Camera';
+            cameraControlBtn.style.backgroundColor = '';
+            isCameraRunning = false;
+        }
+    });
 
     // Add event listener for behavior filter
     behaviorFilter.addEventListener('change', updateDetections);
@@ -146,8 +170,10 @@ document.addEventListener('DOMContentLoaded', function() {
         liveCameraBtn.classList.add('active');
         uploadVideoBtn.classList.remove('active');
         uploadSection.style.display = 'none';
-        videoFeed.style.display = 'block';
-        videoFeed.src = '/video_feed?source=camera';
+        if (isCameraRunning) {
+            videoFeed.style.display = 'block';
+            videoFeed.src = '/video_feed?source=camera';
+        }
     });
     
     uploadVideoBtn.addEventListener('click', () => {
@@ -155,7 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
         liveCameraBtn.classList.remove('active');
         uploadSection.style.display = 'block';
         videoFeed.style.display = 'none';
-    });    // Handle video upload
+        videoFeed.src = '';
+    });
+
+    // Handle video upload
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fileInput = document.getElementById('videoFile');

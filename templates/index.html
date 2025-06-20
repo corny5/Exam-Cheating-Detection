@@ -16,6 +16,7 @@
       <div class="video-source-controls">
         <h2>Video Source</h2>
         <div class="source-buttons">
+          <button id="cameraControlBtn">Start Camera</button>
           <button id="liveCameraBtn" class="active">Live Camera</button>
           <button id="uploadVideoBtn">Upload Video</button>
         </div>
@@ -34,11 +35,7 @@
       </div>
 
       <div class="video-container">
-        <img
-          src="{{ url_for('video_feed') }}"
-          alt="Video feed"
-          id="videoFeed"
-        />
+        <img alt="Video feed" id="videoFeed" />
       </div>
       <div class="alerts-container">
         <h2>Recent Alerts</h2>

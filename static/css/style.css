@@ -344,6 +344,21 @@ h2 {
   background-color: #c82333;
 }
 
+.camera-control {
+  padding: 8px 16px;
+  margin-right: 10px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4caf50;
+  color: rgb(41, 121, 110);
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.camera-control:hover {
+  opacity: 0.9;
+}
+
 @media (max-width: 768px) {
   .container {
     grid-template-columns: 1fr;
