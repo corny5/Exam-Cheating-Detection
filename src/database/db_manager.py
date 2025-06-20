@@ -102,6 +102,25 @@ class DBManager:
         conn.close()
         return alerts
 
+    def get_all_alerts(self):
+        """Get all detections from the database"""
+        conn = psycopg2.connect(**self.conn_params)
+        cur = conn.cursor(cursor_factory=DictCursor)
+
+        query = (
+            self.get_detection_query()
+            + """
+            ORDER BY timestamp DESC
+        """
+        )
+        cur.execute(query)
+
+        alerts = self.process_detection_rows(cur.fetchall())
+
+        cur.close()
+        conn.close()
+        return alerts
+
     def get_recent_detections(self, limit=100):
         """Get recent detections ordered by timestamp"""
         conn = psycopg2.connect(**self.conn_params)

@@ -224,7 +224,7 @@ def video_feed():
 
 @app.route("/alerts")
 def get_alerts():
-    alerts = db_manager.get_recent_alerts()
+    alerts = db_manager.get_all_alerts()
     return jsonify(alerts)
 
 
